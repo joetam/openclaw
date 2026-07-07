@@ -687,6 +687,9 @@ function createCachedDescriptorPluginTool(params: {
     label: descriptor.title ?? descriptor.name,
     description: descriptor.description,
     parameters: descriptor.inputSchema as never,
+    ...(params.descriptor.requiredClientCaps
+      ? { requiredClientCaps: [...params.descriptor.requiredClientCaps] }
+      : {}),
     async execute(toolCallId, executeParams, signal, onUpdate) {
       const loadOptions = buildPluginRuntimeLoadOptions(params.loadContext, {
         activate: false,

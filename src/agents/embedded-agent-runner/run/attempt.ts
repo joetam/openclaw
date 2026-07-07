@@ -1338,6 +1338,7 @@ export async function runEmbeddedAttempt(
             ...(params.crestodianTool ? { crestodianTool: params.crestodianTool } : {}),
             ...buildEmbeddedAttemptToolRunContext({ ...params, trace: runTrace }),
             messageChannel: params.messageChannel,
+            clientCaps: params.clientCaps,
             chatType: params.chatType,
             exec: {
               ...params.execOverrides,

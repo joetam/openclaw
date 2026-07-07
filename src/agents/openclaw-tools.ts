@@ -110,6 +110,8 @@ export function createOpenClawTools(
     fsPolicy?: ToolFsPolicy;
     sandboxed?: boolean;
     config?: OpenClawConfig;
+    /** Capabilities declared by the gateway client that originated this run. */
+    clientCaps?: string[];
     pluginToolAllowlist?: string[];
     pluginToolDenylist?: string[];
     /** Effective caller tool surface to persist on isolated cron agentTurn jobs. */
@@ -602,6 +604,12 @@ export function createOpenClawTools(
     ];
     options?.recordToolPrepStage?.("openclaw-tools:plugin-tools");
   }
+
+  const clientCaps = new Set(options?.clientCaps ?? []);
+  allTools = allTools.filter(
+    (tool) => !tool.requiredClientCaps?.some((requiredCap) => !clientCaps.has(requiredCap)),
+  );
+  options?.recordToolPrepStage?.("openclaw-tools:client-capabilities");
 
   const hookAgentId = options?.requesterAgentIdOverride ?? sessionAgentId;
   const gatewayCallerIdentity =

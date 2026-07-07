@@ -179,7 +179,7 @@ export function renderToolPreview(
             options?.allowExternalEmbedUrls ?? false,
           ),
           height: preview.preferredHeight,
-          sandbox: resolveEmbedSandbox(options?.embedSandboxMode ?? "scripts"),
+          sandbox: resolveEmbedSandbox(options?.embedSandboxMode ?? "scripts", preview.sandbox),
         })}
       </div>
     </div>
@@ -201,7 +201,7 @@ function buildSidebarContent(
   };
 }
 
-function buildPreviewSidebarContent(
+export function buildPreviewSidebarContent(
   preview: ToolPreview,
   rawText?: string | null,
   options?: { fullMessageRequest?: FullMessageRequest },
@@ -215,6 +215,9 @@ function buildPreviewSidebarContent(
     entryUrl: preview.url,
     ...(preview.title ? { title: preview.title } : {}),
     ...(preview.preferredHeight ? { preferredHeight: preview.preferredHeight } : {}),
+    // The per-preview sandbox ceiling must survive the sidebar conversion, or a
+    // trusted global embed mode would re-grant same-origin to widget script.
+    ...(preview.sandbox ? { sandbox: preview.sandbox } : {}),
     ...(rawText ? { rawText } : {}),
     ...(options?.fullMessageRequest ? { fullMessageRequest: options.fullMessageRequest } : {}),
   };
