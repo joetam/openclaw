@@ -1368,6 +1368,7 @@ Do not edit it by hand; run `pnpm docs:map:gen`.
   - H2: What Crestodian shows
   - H2: Examples
   - H2: Operations and approval
+  - H3: Switching to the menu wizards
   - H2: Setup bootstrap
   - H2: AI conversation
   - H3: CLI harness trust model
@@ -1726,6 +1727,7 @@ Do not edit it by hand; run `pnpm docs:map:gen`.
 - Headings:
   - H1: openclaw onboard
   - H2: Examples
+  - H2: Guided flow
   - H2: Reset
   - H2: Locale
   - H2: Non-interactive setup
@@ -8918,8 +8920,9 @@ Do not edit it by hand; run `pnpm docs:map:gen`.
 - Route: /start/wizard
 - Headings:
   - H2: Locale
-  - H2: QuickStart vs Advanced
-  - H2: What onboarding configures
+  - H2: Guided default
+  - H2: Classic wizard: QuickStart vs Advanced
+  - H2: What classic onboarding configures
   - H2: Add another agent
   - H2: Full reference
   - H2: Related docs
