@@ -71,7 +71,7 @@ import {
 } from "./local-model-lean.js";
 import type { ModelAuthMode } from "./model-auth.js";
 import { resolveOpenClawPluginToolsForOptions } from "./openclaw-plugin-tools.js";
-import { createOpenClawTools } from "./openclaw-tools.js";
+import { createOpenClawTools, filterToolsByClientCaps } from "./openclaw-tools.js";
 import type { SandboxContext } from "./sandbox.js";
 import { SANDBOX_AGENT_WORKSPACE_MOUNT } from "./sandbox/constants.js";
 import { resolveReadOnlyWorkspaceSkillMounts } from "./sandbox/workspace-mounts.js";
@@ -905,7 +905,9 @@ export function createOpenClawCodingTools(options?: {
   const shouldCaptureCronCreatorToolAllowlist = toolPolicyInheritanceSources.some(
     (policy) => hasRestrictiveAllowPolicy(policy) || hasExplicitDenyPolicy(policy),
   );
-  const pluginToolsOnly =
+  // Plugin-only plans bypass createOpenClawTools, so the capability gate must
+  // apply here too or narrow allowlists leak gated tools onto capless surfaces.
+  const pluginToolsOnly = filterToolsByClientCaps(
     includeOpenClawTools || !includePluginTools
       ? []
       : resolveOpenClawPluginToolsForOptions({
@@ -942,7 +944,9 @@ export function createOpenClawCodingTools(options?: {
             authProfileStore: options?.authProfileStore,
           },
           resolvedConfig: options?.config,
-        });
+        }),
+    options?.clientCaps,
+  );
   const toolSearchTools = toolSearchControlsEnabled
     ? createToolSearchTools({
         config: options?.config,

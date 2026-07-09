@@ -51,4 +51,31 @@ describe("gateway client capability tool filtering", () => {
 
     expect(hasWidget(tools)).toBe(false);
   });
+
+  it("filters gated tools on plugin-only construction plans", () => {
+    // Regression: plugin-only plans bypass createOpenClawTools, which used to
+    // skip the capability gate entirely for narrow allowlists.
+    const plan = {
+      includeBaseCodingTools: false,
+      includeShellTools: false,
+      includeChannelTools: false,
+      includeOpenClawTools: false,
+      includePluginTools: true,
+    };
+
+    expect(
+      hasWidget(
+        createOpenClawCodingTools({ messageProvider: "telegram", toolConstructionPlan: plan }),
+      ),
+    ).toBe(false);
+    expect(
+      hasWidget(
+        createOpenClawCodingTools({
+          messageProvider: "webchat",
+          clientCaps: ["inline-widgets"],
+          toolConstructionPlan: plan,
+        }),
+      ),
+    ).toBe(true);
+  });
 });
