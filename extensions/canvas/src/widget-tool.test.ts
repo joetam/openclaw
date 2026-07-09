@@ -91,6 +91,8 @@ describe("show_widget", () => {
     );
     expect(html).toContain("<title>&lt;Status&gt;</title>");
     expect(html).toContain('<body class="svg-widget"><SvG');
+    // The embedding chat fits the iframe to the reported content height.
+    expect(html).toContain("openclaw:widget-size");
     const manifest = JSON.parse(
       await readFile(
         path.join(resolveCanvasDocumentDir(preview.viewId, { stateDir }), "manifest.json"),

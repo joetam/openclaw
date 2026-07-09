@@ -38,8 +38,19 @@ function buildWidgetDocument(title: string, widgetCode: string): string {
   const bodyClass = isSvg ? ' class="svg-widget"' : "";
   // Inline scripts may drive the widget; CSP blocks resource loads, while preview metadata
   // prevents the iframe from inheriting same-origin access to the parent application.
+  // The size reporter lets the embedding chat fit the iframe to the content; the
+  // parent clamps reported heights, so widget code cannot abuse the channel.
+  const sizeReporter =
+    "<script>(()=>{if(!window.parent||window.parent===window)return;" +
+    // documentElement.scrollHeight reports the viewport for short content, so
+    // measure the body box, which tracks the actual widget height.
+    "let last=0;const report=()=>{const b=document.body;if(!b)return;" +
+    "const h=Math.ceil(Math.max(b.scrollHeight,b.offsetHeight,b.getBoundingClientRect().height));" +
+    'if(h&&h!==last){last=h;window.parent.postMessage({type:"openclaw:widget-size",height:h},"*");}};' +
+    "addEventListener('load',report);new ResizeObserver(report).observe(document.body);" +
+    "setTimeout(report,50);setTimeout(report,500);})();</script>";
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;"><title>${escapeHtml(title)}</title><style>:root{color-scheme:light dark}*{box-sizing:border-box}html,body{margin:0;min-height:100%}body{font:14px system-ui,sans-serif}.svg-widget{display:grid;place-items:center;min-height:100vh}.svg-widget>svg{max-width:100%;max-height:100vh}</style></head><body${bodyClass}>${widgetCode}</body></html>`;
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;"><title>${escapeHtml(title)}</title><style>:root{color-scheme:light dark}*{box-sizing:border-box}html,body{margin:0}body{font:14px system-ui,sans-serif}.svg-widget{display:grid;place-items:center}.svg-widget>svg{max-width:100%}</style></head><body${bodyClass}>${widgetCode}${sizeReporter}</body></html>`;
 }
 
 function resolveRetentionScope(options: ShowWidgetToolOptions): string {
