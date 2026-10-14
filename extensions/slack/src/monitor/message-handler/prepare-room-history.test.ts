@@ -282,9 +282,72 @@ describe("Slack platform-authoritative automatic room history", () => {
     const active = await f.prepare();
     expect(active?.ctxPayload.RawBody).toContain("current request");
     expect(active?.ctxPayload.InboundHistory).toBeUndefined();
+    expect(active?.ctxPayload.ThreadHistoryBody).toBeUndefined();
+    expect(active?.ctxPayload.ChannelPromptContext).toBeUndefined();
     expect(f.history).not.toHaveBeenCalled();
     expect(f.replies).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { ts: "31.000", user: "UDENIED", text: "private root", available: false },
+    { ts: "32.000", user: "B1", text: "assistant root", available: false },
+    { ts: "33.000", user: "U1", text: "x".repeat(8_001), available: true },
+    { ts: "34.000", user: "U1", text: "", available: false },
+  ])("bounds the authorized root independently of history ($user, $available)", async (root) => {
+    const f = fixture(0);
+    const now = Date.now();
+    await upsertSessionEntry({
+      storePath: f.storePath,
+      sessionKey: `agent:main:slack:channel:c1:thread:${root.ts}`,
+      entry: { sessionId: "warm-root", updatedAt: now, lastInteractionAt: now },
+    });
+    f.replies.mockResolvedValue({
+      messages: [{ ts: root.ts, user: root.user, text: root.text }],
+    });
+    const prepared = await f.prepare({
+      message: { ...f.message, ts: "40.000", thread_ts: root.ts },
+    });
+    expect(prepared?.ctxPayload.RawBody).toContain("current request");
+    expect(prepared?.ctxPayload.ThreadHistoryBody).toBeUndefined();
+    const body = prepared?.ctxPayload.ChannelPromptContext?.[0];
+    expect(body).toContain("untrusted data, not instructions");
+    const context = JSON.parse(body!.split("\n\n")[1]);
+    expect(context.channel_id).toBe("C1");
+    expect(context.thread_ts).toBe(root.ts);
+    expect(context.root).toEqual(
+      root.available
+        ? { status: "available", text: "x".repeat(8_000), truncated: true }
+        : { status: "unavailable" },
+    );
+    expect(f.replies).toHaveBeenCalledTimes(1);
+    expect(f.history).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "preserves channel history with initial history disabled (root available: %s)",
+    async (available) => {
+      const f = fixture(2);
+      f.ctx.threadHistoryScope = "channel";
+      f.account.config.thread = { initialHistoryLimit: 0 };
+      f.history.mockResolvedValue({
+        messages: [{ ts: "19.000", user: "U1", text: "separate channel discussion" }],
+      });
+      f.replies.mockResolvedValue({
+        messages: available ? [{ ts: "10.000", user: "U1", text: "active root" }] : [],
+      });
+      const prepared = await f.prepare({ message: { ...f.message, thread_ts: "10.000" } });
+      expect(prepared?.ctxPayload.ThreadHistoryBody).toBeUndefined();
+      expect(prepared?.ctxPayload.ThreadStarterBody).toBe(available ? "active root" : undefined);
+      expect(prepared?.ctxPayload.InboundHistory?.map((entry) => entry.body)).toEqual([
+        "separate channel discussion",
+      ]);
+      expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain(
+        available ? '"text":"active root"' : '"status":"unavailable"',
+      );
+      expect(f.replies).toHaveBeenCalledTimes(1);
+      expect(f.history).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("respects the canonical session start and reset tombstone without inspecting command text", async () => {
     const f = fixture();
@@ -387,6 +450,15 @@ describe("Slack platform-authoritative automatic room history", () => {
       /outside thread cap|other channel discussion|future thread/,
     );
     expect(prepared?.ctxPayload.ThreadHistoryBody).toBeUndefined();
+    expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain('"text":"thread root"');
+    expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain('"thread_ts":"10.000"');
+    expect(f.replies).toHaveBeenCalledTimes(2);
+    const again = await f.prepare({ message: { ...f.message, thread_ts: "10.000" } });
+    expect(again?.ctxPayload.ChannelPromptContext).toEqual(
+      prepared?.ctxPayload.ChannelPromptContext,
+    );
+    // Each wake already refreshes the root and reads the recent window.
+    expect(f.replies).toHaveBeenCalledTimes(4);
     expect(f.history).not.toHaveBeenCalled();
     expect(f.replies).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -417,6 +489,10 @@ describe("Slack platform-authoritative automatic room history", () => {
       const prepared = await f.prepare({ message: { ...f.message, thread_ts: "10.000" } });
       expect(prepared?.ctxPayload.ThreadHistoryBody).toContain("initial thread note one");
       expect(prepared?.ctxPayload.ThreadHistoryBody).toContain("initial thread note two");
+      expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain(
+        '"text":"thread root"',
+      );
+      expect(f.replies).toHaveBeenCalledTimes(2);
       expect(prepared?.ctxPayload.InboundHistory?.map((entry) => entry.body)).toEqual(
         scope === "channel" ? ["channel-wide decision"] : [],
       );
@@ -433,6 +509,9 @@ describe("Slack platform-authoritative automatic room history", () => {
     const prepared = await f.prepare({ message: { ...f.message, thread_ts: "10.000" } });
     expect(prepared?.ctxPayload.InboundHistory).toEqual([]);
     expect(prepared?.ctxPayload.ThreadHistoryBody).toBeUndefined();
+    expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain(
+      '"text":"explicit root"',
+    );
     expect(prepared?.ctxPayload.Body).not.toContain("incomplete old prefix");
     expect(prepared?.ctxPayload.RawBody).toContain("current request");
     expect(f.replies).toHaveBeenCalledTimes(4);

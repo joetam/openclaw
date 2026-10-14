@@ -87,7 +87,10 @@ import { resolveSlackDmHistoryContext, resolveSlackDmHistoryLimit } from "./prep
 import { resolveSlackRoomHistory } from "./prepare-room-history.js";
 import { resolveSlackRoutingContext } from "./prepare-routing.js";
 import { resolveSlackGroupSessionSubject } from "./prepare-session-presentation.js";
-import { resolveSlackThreadContextData } from "./prepare-thread-context.js";
+import {
+  composeSlackActiveThreadRoot,
+  resolveSlackThreadContextData,
+} from "./prepare-thread-context.js";
 import { resolveSlackThreadMentionPolicy } from "./prepare-thread-mentions.js";
 import {
   collectSlackMentionIds,
@@ -1347,6 +1350,13 @@ export async function prepareSlackMessage(params: {
   const commandBody = textForCommandDetection.trim();
   const supplementalThreadHistoryBody =
     directThreadRoutedToDmSession && !threadHistoryBody ? threadStarterBody : threadHistoryBody;
+  const channelPromptContext = channelMetadata ? [channelMetadata] : [];
+  if (isRoomish && isThreadReply && threadTs) {
+    // Carry the authorized root every turn without changing initial-history selection.
+    channelPromptContext.push(
+      composeSlackActiveThreadRoot({ channelId: message.channel, threadTs, threadStarterBody }),
+    );
+  }
   const agentContextEntities = isAgentViewMessage
     ? normalizeSlackAppContextEntities(message.app_context)
     : [];
@@ -1440,7 +1450,7 @@ export async function prepareSlackMessage(params: {
     extra: {
       GroupThread: groupThread,
       GroupSubject: groupSessionSubject,
-      ChannelPromptContext: channelMetadata ? [channelMetadata] : undefined,
+      ChannelPromptContext: channelPromptContext.length > 0 ? channelPromptContext : undefined,
       ChannelStructuredContext:
         agentContextEntities.length > 0
           ? [
