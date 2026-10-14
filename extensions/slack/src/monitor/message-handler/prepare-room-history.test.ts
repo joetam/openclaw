@@ -516,9 +516,8 @@ describe("Slack platform-authoritative automatic room history", () => {
     const prepared = await f.prepare({ message: { ...f.message, thread_ts: "10.000" } });
     expect(prepared?.ctxPayload.InboundHistory).toEqual([]);
     expect(prepared?.ctxPayload.ThreadHistoryBody).toBeUndefined();
-    expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain(
-      '"text":"explicit root"',
-    );
+    expect(prepared?.ctxPayload.ThreadStarterBody).toBe("explicit root");
+    expect(prepared?.ctxPayload.ChannelPromptContext).toBeUndefined();
     expect(prepared?.ctxPayload.Body).not.toContain("incomplete old prefix");
     expect(prepared?.ctxPayload.RawBody).toContain("current request");
     expect(f.replies).toHaveBeenCalledTimes(4);
