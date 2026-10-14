@@ -344,9 +344,13 @@ describe("Slack platform-authoritative automatic room history", () => {
       expect(prepared?.ctxPayload.InboundHistory?.map((entry) => entry.body)).toEqual([
         "separate channel discussion",
       ]);
-      expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain(
-        available ? '"text":"active root"' : '"status":"unavailable"',
-      );
+      if (available) {
+        expect(prepared?.ctxPayload.ChannelPromptContext).toBeUndefined();
+      } else {
+        expect(prepared?.ctxPayload.ChannelPromptContext?.join("\n")).toContain(
+          '"status":"unavailable"',
+        );
+      }
       expect(f.replies).toHaveBeenCalledTimes(1);
       expect(f.history).toHaveBeenCalledTimes(1);
     },

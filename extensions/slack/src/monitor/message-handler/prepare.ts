@@ -1351,8 +1351,14 @@ export async function prepareSlackMessage(params: {
   const supplementalThreadHistoryBody =
     directThreadRoutedToDmSession && !threadHistoryBody ? threadStarterBody : threadHistoryBody;
   const channelPromptContext = channelMetadata ? [channelMetadata] : [];
-  if (isRoomish && isThreadReply && threadTs) {
-    // Carry the authorized root every turn without changing initial-history selection.
+  if (
+    isRoomish &&
+    isThreadReply &&
+    threadTs &&
+    !(shouldSeedInitialThreadContext && threadStarterBody && !threadHistoryBody)
+  ) {
+    // First-turn starter metadata already supplies the root when no history masks it.
+    // Carry it separately on later turns without changing initial-history selection.
     channelPromptContext.push(
       composeSlackActiveThreadRoot({ channelId: message.channel, threadTs, threadStarterBody }),
     );
